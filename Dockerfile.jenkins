@@ -1,0 +1,27 @@
+# Builds rclone from source, for Jenkins. The stock Dockerfile instead expects a
+# release zip that only the GitHub release workflow produces.
+FROM golang:1.26-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath \
+    -ldflags "-s -X github.com/rclone/rclone/fs.Version=v1.75.4-hotfix" \
+    -o /out/rclone .
+
+FROM alpine:3.22
+
+ARG RCLONE_UID=1009
+ARG RCLONE_GID=1009
+
+RUN apk add --no-cache ca-certificates fuse3 mailcap tzdata coreutils && \
+    echo "user_allow_other" >> /etc/fuse.conf
+
+COPY --from=build /out/rclone /usr/local/bin/rclone
+
+RUN addgroup -g "${RCLONE_GID}" rclone && adduser -u "${RCLONE_UID}" -Ds /bin/sh -G rclone rclone
+
+ENTRYPOINT [ "rclone" ]
+
+WORKDIR /data
+ENV XDG_CONFIG_HOME=/config
