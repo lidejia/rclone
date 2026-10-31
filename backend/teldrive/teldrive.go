@@ -830,6 +830,20 @@ func (f *Fs) updateFileInformation(ctx context.Context, update *api.UpdateFileIn
 	return nil
 }
 
+// touchDir sets directoryID's modification time to now, because TelDrive leaves
+// it unchanged when an item is added, which hides new items from tools that use
+// it to find changes. A failure is only logged, since the item that triggered it
+// has already been written.
+func (f *Fs) touchDir(ctx context.Context, directoryID string) {
+	if directoryID == "" || directoryID == rootID {
+		return
+	}
+	update := &api.UpdateFileInformation{ModTime: Ptr(time.Now().UTC().Truncate(f.Precision()))}
+	if err := f.updateFileInformation(ctx, update, directoryID); err != nil {
+		fs.Errorf(f, "Failed to update modification time of directory %s: %v", directoryID, err)
+	}
+}
+
 func (f *Fs) putUnchecked(ctx context.Context, in io.Reader, src fs.ObjectInfo, options ...fs.OpenOption) error {
 	if src.Size() < 0 {
 		_, err := multipart.UploadMultipart(ctx, src, in, multipart.UploadMultipartOptions{
@@ -1192,6 +1206,7 @@ func (f *Fs) CreateDir(ctx context.Context, pathID, leaf string) (string, error)
 	if err != nil {
 		return "", err
 	}
+	f.touchDir(ctx, pathID)
 	return info.Id, nil
 }
 
@@ -1279,6 +1294,7 @@ func (f *Fs) Move(ctx context.Context, src fs.Object, remote string) (fs.Object,
 	if err != nil {
 		return nil, err
 	}
+	f.touchDir(ctx, directoryID)
 	f.dirCache.FlushDir(src.Remote())
 	newObj := *srcObj
 	newObj.remote = remote
@@ -1308,6 +1324,7 @@ func (f *Fs) DirMove(ctx context.Context, src fs.Fs, srcRemote, dstRemote string
 	if err != nil {
 		return fmt.Errorf("dirmove: failed to move: %w", err)
 	}
+	f.touchDir(ctx, dstDirectoryID)
 	srcFs.dirCache.FlushDir(srcRemote)
 	return nil
 }
@@ -1442,6 +1459,7 @@ func (f *Fs) Copy(ctx context.Context, src fs.Object, remote string) (fs.Object,
 	if err != nil {
 		return nil, err
 	}
+	f.touchDir(ctx, directoryID)
 	return f.newObjectWithInfo(ctx, remote, &info)
 }
 

@@ -492,6 +492,7 @@ func (o *Object) completeUpload(ctx context.Context, info *uploadInfo) (*api.Fil
 		return nil, err
 	}
 	o.applyFileInfo(&file)
+	o.fs.touchDir(ctx, info.dir)
 	return &file, nil
 }
 

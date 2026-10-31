@@ -31,6 +31,12 @@ parts that the server has already stored. Compatibility includes destination,
 exact-case name, size, MIME type, modification time, encryption mode, conflict
 policy, and BLAKE3 hash when the source provides one.
 
+TelDrive does not change a directory's modification time when something is
+added to it, so rclone sets it after each upload, new directory, copy or move,
+which lets tools such as media library scanners find new items. Only the
+immediate parent is updated, at the cost of one extra API call per item, and
+the root directory is skipped.
+
 Deleting a file or directory moves it to TelDrive trash. Use
 `rclone cleanup remote:` to permanently purge all top-level trashed entries
 under the configured remote root. Individual entries can be managed by ID:
