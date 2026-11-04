@@ -1,19 +1,13 @@
+// The image is built and pushed by the buildImage step in the k3s-homelib
+// shared library (vars/buildImage.groovy), which also tags it with the
+// commit's short SHA.
 pipeline {
     agent any
-
-    environment {
-        IMAGE = 'nexus3.workstation.lidejia.info/docker/rclone'
-    }
 
     stages {
         stage('Build & Push') {
             steps {
-                script {
-                    def tag = env.GIT_COMMIT.take(7)
-                    container('kaniko') {
-                        sh "/kaniko/executor --context=dir://${WORKSPACE} --dockerfile=Dockerfile.jenkins --destination=${IMAGE}:1.75.4-hotfix --destination=${IMAGE}:${tag} --ignore-path=/product_uuid"
-                    }
-                }
+                buildImage(image: 'nexus3.workstation.lidejia.info/docker/rclone', dockerfile: 'Dockerfile.jenkins', tags: ['1.75.4-hotfix'])
             }
         }
     }
